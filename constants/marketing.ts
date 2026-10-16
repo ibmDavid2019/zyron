@@ -48,21 +48,33 @@ export interface PricingPlan {
   badge?: string;
 }
 
+const CORE_FEATURES = [
+  "Rastreamento GPS ilimitado",
+  "Planos de treino com Zyron AI",
+  "Histórico completo de atividades",
+  "Feed, comunidade e desafios",
+  "Estatísticas e análises de desempenho",
+];
+
 export const PRICING_PLANS: PricingPlan[] = [
   {
-    name: "ZYRON",
-    price: "Grátis",
-    description: "Grátis para sempre, com anúncios. Sem cartão, sem assinatura.",
-    features: [
-      "Rastreamento GPS ilimitado",
-      "Planos de treino com Zyron AI",
-      "Histórico completo de atividades",
-      "Feed, comunidade e desafios",
-      "Estatísticas e análises de desempenho",
-    ],
+    name: "Grátis",
+    price: "R$ 0",
+    description: "Acesso completo ao ZYRON, com anúncios.",
+    features: CORE_FEATURES,
     cta: "Criar conta grátis",
     href: "/register",
+    badge: "Sem cartão",
+  },
+  {
+    name: "Premium",
+    price: "R$ 14,90",
+    period: "/mês",
+    description: "Acesso completo ao ZYRON, sem nenhum anúncio.",
+    features: [...CORE_FEATURES, "Zero anúncios"],
+    cta: "Assinar agora",
+    href: "/billing",
     highlighted: true,
-    badge: "100% grátis",
+    badge: "Sem anúncios",
   },
 ];

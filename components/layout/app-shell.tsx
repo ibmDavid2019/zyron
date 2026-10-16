@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { PwaInstallBanner } from "@/components/shared/pwa-install-banner";
 import { AdMobBanner } from "@/components/shared/admob-banner";
+import { AdMobInterstitial } from "@/components/shared/admob-interstitial";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">{children}</div>
       </main>
       <AdMobBanner />
+      <AdMobInterstitial />
       <MobileNav />
       <PwaInstallBanner />
     </div>

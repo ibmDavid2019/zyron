@@ -2,9 +2,10 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Full-access Supabase client using the `service_role` key — bypasses Row
- * Level Security entirely. Server-only, for routes that have no user
- * session/cookies to authenticate with and need to write to another user's
- * row. Never import this from anything that could run in the browser.
+ * Level Security entirely. Server-only, and used by the Cakto webhook
+ * (`app/api/webhooks/cakto/route.ts`), which has no user session/cookies to
+ * authenticate with and needs to write to another user's subscription row.
+ * Never import this from anything that could run in the browser.
  */
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

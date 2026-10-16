@@ -1,35 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Paths a logged-in user can always reach, even with an expired trial and no
-// active subscription — otherwise they could never see the billing page (or
-// finish signing up/logging in) to actually pay.
-const PUBLIC_PATHS = new Set([
-  "/",
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/reset-password",
-  "/verify-email",
-  "/onboarding",
-  "/billing",
-  "/download",
-]);
-
-function isPublicPath(pathname: string) {
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  // /s/[share_token] — public shared-activity pages, reachable by anyone
-  // with the link (including logged-out visitors and social-preview crawlers).
-  return pathname.startsWith("/auth/") || pathname.startsWith("/api/") || pathname.startsWith("/s/");
-}
-
 /**
- * Refreshes the Supabase auth session cookie on every request, and — once
- * the `subscriptions` table exists (see supabase/migrations/0001_subscriptions.sql)
- * — gates access for logged-in users whose 7-day trial ended without
- * watching a rewarded ad to unlock another 24h (see features/billing and
- * supabase/migrations/0007_remove_cakto_add_ad_unlock.sql). Called from
- * `proxy.ts` (Next.js 16 renamed Middleware to Proxy — same mechanism).
+ * Refreshes the Supabase auth session cookie on every request. The app
+ * itself is free and never gated by subscription status — `subscriptions.status`
+ * only decides whether ads show (see hooks/use-premium-status.ts), it never
+ * blocks a route. Called from `proxy.ts` (Next.js 16 renamed Middleware to
+ * Proxy — same mechanism).
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -76,30 +53,6 @@ export async function updateSession(request: NextRequest) {
     });
   } else {
     supabaseResponse.cookies.delete("zyron-uid");
-  }
-
-  if (user && !isPublicPath(request.nextUrl.pathname)) {
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("status, trial_ends_at, is_admin")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    // No row means the migration hasn't been run yet (or the signup trigger
-    // hasn't fired) — fail open rather than lock everyone out, so this gate
-    // self-activates the moment the real table exists, with no separate
-    // "is this feature configured" flag to maintain anywhere.
-    if (subscription) {
-      const hasAccess =
-        subscription.is_admin === true ||
-        subscription.status === "active" ||
-        (subscription.trial_ends_at !== null && new Date(subscription.trial_ends_at) > new Date());
-      if (!hasAccess) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/billing";
-        return NextResponse.redirect(url);
-      }
-    }
   }
 
   return supabaseResponse;

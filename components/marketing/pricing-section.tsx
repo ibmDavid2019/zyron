@@ -14,16 +14,16 @@ export function PricingSection() {
             Simples, transparente, sem pegadinhas
           </h2>
           <p className="mt-4 text-lg text-muted-foreground text-balance">
-            Grátis para sempre, com anúncios. Sem cartão, sem assinatura.
+            Use o ZYRON de graça, com anúncios, ou assine para remover todos eles.
           </p>
         </div>
 
-        <div className="mt-14 flex justify-center">
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 sm:items-start">
           {PRICING_PLANS.map((plan) => (
             <div
               key={plan.name}
               className={cn(
-                "relative w-full max-w-sm rounded-2xl border bg-card p-6",
+                "relative w-full rounded-2xl border bg-card p-6",
                 plan.highlighted ? "border-brand shadow-xl" : "border-border"
               )}
             >

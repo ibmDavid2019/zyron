@@ -5,9 +5,11 @@ import { AdMob, BannerAdPosition, BannerAdSize, RewardAdPluginEvents } from "@ca
 // ads regardless of account/billing setup, so they're the safe default
 // until real production IDs are set via env vars (see .env.local.example).
 const TEST_BANNER_UNIT_ID = "ca-app-pub-3940256099942544/6300978111";
+const TEST_INTERSTITIAL_UNIT_ID = "ca-app-pub-3940256099942544/1033173712";
 const TEST_REWARDED_UNIT_ID = "ca-app-pub-3940256099942544/5224354917";
 
 const BANNER_UNIT_ID = process.env.NEXT_PUBLIC_ADMOB_BANNER_UNIT_ID || TEST_BANNER_UNIT_ID;
+const INTERSTITIAL_UNIT_ID = process.env.NEXT_PUBLIC_ADMOB_INTERSTITIAL_UNIT_ID || TEST_INTERSTITIAL_UNIT_ID;
 const REWARDED_UNIT_ID = process.env.NEXT_PUBLIC_ADMOB_REWARDED_UNIT_ID || TEST_REWARDED_UNIT_ID;
 // Only "testing" (adds the on-ad "Test Ad" badge, exempt from real-ad
 // policy) when no real unit ID was configured — a real ID should always
@@ -50,6 +52,26 @@ export async function showBanner(): Promise<void> {
 export async function hideBanner(): Promise<void> {
   if (!adsAvailable()) return;
   await AdMob.removeBanner();
+}
+
+/**
+ * Prepares and shows a full-screen interstitial, resolving true once it was
+ * actually shown (false if it failed to load/show). Unlike the rewarded
+ * promise below, `showInterstitial()` resolves right after presenting the
+ * ad rather than waiting for it to be dismissed, so there's nothing to
+ * race against a Dismissed event here.
+ */
+export async function showInterstitial(): Promise<boolean> {
+  if (!adsAvailable()) return false;
+  await initAdMob();
+
+  try {
+    await AdMob.prepareInterstitial({ adId: INTERSTITIAL_UNIT_ID, isTesting: IS_TESTING });
+    await AdMob.showInterstitial();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import {
   ChevronRight,
   Clock,
+  CreditCard,
   Download,
   Eye,
   EyeOff,
@@ -16,11 +17,11 @@ import {
   Monitor,
   Moon,
   Pencil,
-  PlayCircle,
   ShieldCheck,
   Smartphone,
   Sun,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -51,11 +52,7 @@ import { cn } from "@/lib/utils";
 import { getSavedActivities } from "@/utils/local-store";
 import type { Subscription } from "@/types/subscription";
 
-function daysLeft(trialEndsAt: string | null): number | null {
-  if (!trialEndsAt) return null;
-  const ms = new Date(trialEndsAt).getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
-}
+const CAKTO_OFFER_ID = process.env.NEXT_PUBLIC_CAKTO_OFFER_ID;
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -84,7 +81,7 @@ function SettingsRow({
   description?: string;
   action?: React.ReactNode;
   href?: string;
-  /** Opens href in a new tab via a plain <a> instead of Next's client-side <Link> — for links leaving the app. */
+  /** Opens href in a new tab via a plain <a> instead of Next's client-side <Link> — for links leaving the app (e.g. the Cakto checkout). */
   external?: boolean;
 }) {
   const content = (
@@ -231,7 +228,7 @@ export function SettingsPage() {
 
         const { data: subscription } = await supabase
           .from("subscriptions")
-          .select("status, trial_ends_at, is_admin, current_period_end")
+          .select("status, trial_ends_at, is_admin, current_period_end, cancel_requested_at, cakto_subscription_id")
           .eq("user_id", user.id)
           .maybeSingle<Subscription>();
 
@@ -268,6 +265,27 @@ export function SettingsPage() {
   function handleDeleteAccount() {
     toast.success("Conta marcada para exclusão (demonstração).");
   }
+
+  async function handleCancelSubscription() {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("request_cancel_subscription");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setAccount((prev) =>
+        prev?.subscription ? { ...prev, subscription: { ...prev.subscription, cancel_requested_at: new Date().toISOString() } } : prev
+      );
+      toast.success("Cancelamento solicitado. Os anúncios voltam só no fim do período já pago.");
+    } catch {
+      toast.error("Não foi possível registrar o cancelamento agora. Tente de novo.");
+    }
+  }
+
+  const checkoutUrl = CAKTO_OFFER_ID
+    ? `https://pay.cakto.com.br/${CAKTO_OFFER_ID}${account?.email ? `?email=${encodeURIComponent(account.email)}` : ""}`
+    : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -309,38 +327,88 @@ export function SettingsPage() {
           />
         ) : account?.subscription ? (
           account.subscription.status === "active" ? (
-            <SettingsRow
-              icon={PlayCircle}
-              label="Acesso"
-              description={`Liberado por anúncio · até ${formatDate(account.subscription.current_period_end)}`}
-              href="/billing"
-              action={
-                <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                  Ativo
-                </span>
-              }
-            />
-          ) : (
-            (() => {
-              const remaining = daysLeft(account.subscription.trial_ends_at);
-              const trialActive = remaining !== null && remaining > 0 && account.subscription.status === "trialing";
-              return (
+            account.subscription.cakto_subscription_id ? (
+              <>
                 <SettingsRow
-                  icon={trialActive ? Clock : PlayCircle}
-                  label={trialActive ? "Teste grátis" : "Acesso"}
+                  icon={CreditCard}
+                  label="Assinatura"
                   description={
-                    trialActive
-                      ? `Restam ${remaining} dia${remaining === 1 ? "" : "s"} · depois assista um anúncio`
-                      : "Seu teste grátis acabou · assista um anúncio para liberar 24h"
+                    account.subscription.cancel_requested_at
+                      ? `Cancelamento solicitado · anúncios voltam em ${formatDate(account.subscription.current_period_end)}`
+                      : "R$14,90/mês · sem anúncios · próxima cobrança automática"
                   }
+                  href={checkoutUrl ?? undefined}
+                  external
                   action={
-                    <Button size="sm" asChild>
-                      <Link href="/billing">{trialActive ? "Ver opções" : "Assistir anúncio"}</Link>
-                    </Button>
+                    account.subscription.cancel_requested_at ? (
+                      <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">
+                        Cancelamento pendente
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                        Sem anúncios
+                      </span>
+                    )
                   }
                 />
-              );
-            })()
+                {!account.subscription.cancel_requested_at && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-destructive/5">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                          <XCircle className="size-4.5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-destructive">Cancelar assinatura</p>
+                          <p className="text-xs text-muted-foreground">Interrompe a próxima cobrança automática</p>
+                        </div>
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancelar sua assinatura?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Você continua sem anúncios até{" "}
+                          {formatDate(account.subscription.current_period_end)} (o período que você já pagou). Depois
+                          disso, nenhuma nova cobrança será feita e os anúncios voltam a aparecer.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-white hover:bg-destructive/90"
+                          onClick={handleCancelSubscription}
+                        >
+                          Cancelar assinatura
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
+            ) : (
+              <SettingsRow
+                icon={Clock}
+                label="Anúncios removidos"
+                description={`Por 24h, até ${formatDate(account.subscription.current_period_end)} · depois voltam a aparecer`}
+                action={
+                  <Button size="sm" asChild>
+                    <Link href="/billing">Ver opções</Link>
+                  </Button>
+                }
+              />
+            )
+          ) : (
+            <SettingsRow
+              icon={CreditCard}
+              label="Anúncios"
+              description="Você está no plano grátis, com anúncios"
+              action={
+                <Button size="sm" asChild>
+                  <Link href="/billing">Remover anúncios</Link>
+                </Button>
+              }
+            />
           )
         ) : null}
       </SettingsSection>
