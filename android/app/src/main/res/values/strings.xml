@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ZYRON</string>
+    <string name="title_activity_main">ZYRON</string>
+    <string name="package_name">app.zyron.fitness</string>
+    <string name="custom_url_scheme">app.zyron.fitness</string>
+    <!-- Google's official sample AdMob App ID — always safe for testing.
+         Replace with the real App ID from https://apps.admob.com before
+         shipping a production build, or AdMob will only ever serve test ads. -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+</resources>
